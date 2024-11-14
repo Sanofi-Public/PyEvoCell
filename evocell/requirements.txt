@@ -1,0 +1,14 @@
+streamlit
+anndata
+networkx==3.3
+plotly==5.24.1
+langchain_community==0.3.2
+streamlit-aggrid==1.0.5
+scikit-learn==1.5.2
+kaleido
+nbformat
+langchain-ollama==0.2.0
+requests
+pydeseq2
+gseapy
+openai==1.51.2

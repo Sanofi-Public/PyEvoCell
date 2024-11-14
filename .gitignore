@@ -1,0 +1,14 @@
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore Python bytecode
+__pycache__/
+*.py[cod]
+
+# If you want to ignore Jupyter Notebook checkpoints anywhere in your repo
+**/.ipynb_checkpoints/
+
+# Optional: Ignore any compiled Python files
+*.pyc
+*.pyo
+*.pyd

@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  evocell:
+    build:
+      context: ./evocell
+      dockerfile: Dockerfile  # Specify Dockerfile (optional if it's named Dockerfile)
+    container_name: evocell-container
+    environment:
+      - OPENAI_API_KEY=chatgptkey
+      - OLLAMA_API_BASE_URL=http://evocell_ollama:11434  # Point EvoCell to Ollama's API endpoint
+    volumes:
+      #- evocell_code:/home/streamlit  # Persistent storage for user data
+      - evocell_data:/home/streamlit/data # Where input data is located - Seurat or Anndata files
+    ports:
+      - "8501:8501"  # Expose the default Streamlit port to the host
+    restart: unless-stopped
+    depends_on:
+      - evocell_ollama  # Ensure Ollama starts before EvoCell
+
+  evocell_ollama:
+    hostname: evocell_ollama
+    container_name: evocell_ollama
+    build:
+      context: ./ollama
+      dockerfile: Dockerfile
+    ports:
+      - "11434:11434"
+      - "3001:3001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ollama_app:/app
+      - ollama:/home/ollama/.ollama
+    entrypoint: ["/entrypoint.sh"]
+    user: root
+
+  evocell_ollama-webui:
+    image: ghcr.io/ollama-webui/ollama-webui:main
+    container_name: evocell_ollama-webui
+    ports: 
+      - "3000:8080"
+    volumes:
+      - ollama-webui:/app/backend/data
+    depends_on:
+      - evocell_ollama
+    environment:
+      - 'OLLAMA_API_BASE_URL=http://evocell_ollama:11434/api'
+    restart: unless-stopped
+
+
+volumes:
+  evocell_code:
+  evocell_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/mamat/accplatform/article1-sanofi/data
+    name: evocell_data
+    labels:
+      com.docker.compose.volume: "true"
+      com.docker.compose.project: "my_project"
+      com.docker.compose.service: "php"
+      com.docker.compose.volume.version: "2.0.0"
+      com.docker.compose.volume.built_by: "Docker Compose"
+      com.docker.compose.volume.config.hash: "abcdef1234567890"
+      com.docker.compose.volume.config.external: "false"
+      com.docker.compose.volume.config.name: "evocell_data"
+      com.docker.compose.volume.config.driver: "local"
+      com.docker.compose.volume.config.driver_opts: "type=none o=bind device=/home/mamat/accplatform/article1-sanofi/data"
+      com.docker.compose.volume.config.labels: "com.docker.compose.volume=true compose.volume.version=2.0.0 com.docker.compose.volume.config.external=false com.docker.compose.volume.config.name=evocell_data com.docker.compose.volume.config.driver=local com.docker.compose.volume.config.driver_opts=type=none"
+  ollama: {}
+  ollama_app: {}
+  ollama-webui: {}
