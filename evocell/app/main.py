@@ -720,7 +720,8 @@ def main():
 
     # Display logo in the first column
     with col1:
-        st.image(logo, use_column_width=False)
+        # st.image(logo, use_column_width=False)
+        st.image(logo)
 
     # Display title in the second column
     with col2:
@@ -763,7 +764,7 @@ def main():
         input_dir = st.text_input("Enter the directory containing CSV files:", "")
         # Text area for entering a few words on two lines
         context_input = st.text_area(
-            "Enter the context of your study here:", "", height=50
+            "Enter the context of your study here:", ""  # , height=50
         )
         st.session_state.context_input = context_input
 
@@ -1656,7 +1657,8 @@ def main():
         st.header("Enter a claim")
 
         # Text area for entering a few words on two lines
-        claim = st.text_area("Claim:", "", height=50)
+        # claim = st.text_area("Claim:", "", height=68)
+        claim = st.text_area("Claim:", "")
 
         # Button to call the function
         if st.button("Verify claim"):
