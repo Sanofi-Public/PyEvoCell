@@ -32,7 +32,8 @@ To begin the analysis, the directory containing the CSV files that will be used 
 - Monocle trajectory: The CDS file must be converted to a CSV format which produces progressions.csv, milestone_percentages.csv, dimred_milestone.csv, dimred.csv, and trajectory_edges.csv
 - Count Data: A comma delimited count data file (count_data.csv) that has gene names in rows and cell ids as column names. 
 
-The cell identifiers of the count_data.csv and metadata must be identical. Demo Datasets can be found in the data/ folder, where the count_data.csv is gzipped. The users need to unzip this file.
+The cell identifiers of the count_data.csv and metadata must be identical and all the csv files must be in the same folder.
+Two demo datasets (Kras and Pancreas) are listed in the data/ folder. Please note that the count_data.csv is gzipped and will need to be unzipped using "unzip count_data.csv.gz" command.
 
 Next, the input context for the study (or it can be left blank). This context will be added to the prompts sent to the LLM every time it is used. For more information, see [Customizing the LLM Prompts](#customizing-the-llm-prompts).
 
