@@ -711,17 +711,13 @@ def main():
     # Load and resize the logo
     logo_path = os.path.join(script_dir, "../www/images/mdm_product_logo.png")
     logo = Image.open(logo_path)
-    logo = logo.resize(
-        (int(logo.width * (50 / logo.height)), 50)
-    )  # Resize to height of 50px
 
     # Create columns for logo and title
-    col1, col2 = st.columns([1, 40])  # Adjust width ratios as needed
+    col1, col2 = st.columns([5, 40])  # Adjust width ratios as needed
 
     # Display logo in the first column
     with col1:
-        # st.image(logo, use_column_width=False)
-        st.image(logo)
+        st.image(logo, use_column_width=True)
 
     # Display title in the second column
     with col2:
@@ -1248,7 +1244,7 @@ def main():
 
             # Select the number of neighbors for the path search
             neighbors_count = st.slider(
-                "Select Neighbors Count", min_value=0, max_value=5, value=2
+                "Select Neighbors Count", min_value=1, max_value=5, value=2
             )
 
             # Search options
