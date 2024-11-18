@@ -13,7 +13,10 @@ import re
 import llm.provider
 import llm.process_hypothesis
 from llm.provider import get_llm_output, get_available_models
-from llm.process_hypothesis import process_hypothesis_data, process_paragraph_for_veracity
+from llm.process_hypothesis import (
+    process_hypothesis_data,
+    process_paragraph_for_veracity,
+)
 from llm.provider import execute_ollama_script
 
 from search_path.search_path import (
@@ -204,7 +207,9 @@ def explain_path(path_info):
 
     print(prompt)
 
-    verification = get_llm_output(st.session_state.selected_llm_models, prompt) # already prints the output
+    verification = get_llm_output(
+        st.session_state.selected_llm_models, prompt
+    )  # already prints the output
     return verification
 
 
@@ -535,12 +540,12 @@ def create_fa_prompt(selected_terms, reg, metadata, exp_context, selected_metada
     print(regulation_txt)
 
     group_1_freq = metadata[metadata["group_label"] == "group_1"][
-       selected_metadata
+        selected_metadata
     ].value_counts()[:5]
     group_1_celltypes = group_1_freq.index.to_list()
     group_1_celltypes = ", ".join(group_1_celltypes)
     group_2_freq = metadata[metadata["group_label"] == "group_2"][
-       selected_metadata
+        selected_metadata
     ].value_counts()[:5]
     group_2_celltypes = group_2_freq.index.to_list()
     group_2_celltypes = ", ".join(group_2_celltypes)
@@ -564,24 +569,23 @@ def create_fa_prompt(selected_terms, reg, metadata, exp_context, selected_metada
     return prompt
 
 
-def openai_llm_result(prompt, openai_api_key):
-    import openai
-    from openai import OpenAI
+# def openai_llm_result(prompt, openai_api_key):
+#    import openai
+#    from openai import OpenAI
 
-    MODEL = "gpt-4-1106-preview"
-    MODEl = "GPT-4o"
-    client = OpenAI(api_key=openai_api_key)
-    # client = OpenAI()
-    openai.api_key = openai_api_key
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=2000,
-        temperature=0.2,
-    )
-
-    llm_res = response.choices[0].message.content
-    return llm_res
+#    MODEL = "gpt-4-1106-preview"
+#    MODEl = "GPT-4o"
+#    client = OpenAI(api_key=openai_api_key)
+#    # client = OpenAI()
+#    openai.api_key = openai_api_key
+#    response = client.chat.completions.create(
+#        model=MODEL,
+#        messages=[{"role": "user", "content": prompt}],
+#        max_tokens=2000,
+#        temperature=0.2,
+#    )
+#    llm_res = response.choices[0].message.content
+#    return llm_res
 
 
 def veracity_filter(claim):
@@ -599,8 +603,10 @@ def veracity_filter(claim):
     verification = get_llm_output(st.session_state.selected_llm_models, prompt)
 
     # process answer from LLM
-    is_true, is_valid, citations = process_paragraph_for_veracity(verification, progress_callback = None)
-    
+    is_true, is_valid, citations = process_paragraph_for_veracity(
+        verification, progress_callback=None
+    )
+
     if is_true is True:
         if is_valid:
             result = "Claim is valid.\n\n" + "\n\n".join(citations)
@@ -660,10 +666,10 @@ if "cells_1" not in st.session_state:
 if "cells_2" not in st.session_state:
     st.session_state.cells_2 = None
 
-if "openai_api_key" not in st.session_state:
-    openai_api_key = pd.read_csv("/home/oneai/openai_api_key")
-    openai_api_key = list(openai_api_key)[0]
-    st.session_state.openai_api_key = openai_api_key
+# if "openai_api_key" not in st.session_state:
+#    openai_api_key = pd.read_csv("/home/oneai/openai_api_key")
+#    openai_api_key = list(openai_api_key)[0]
+#    st.session_state.openai_api_key = openai_api_key
 
 if "dge_df" not in st.session_state:
     st.session_state.dge_df = None
@@ -1053,15 +1059,18 @@ def main():
                                 columns=[
                                     "Cell state",
                                     "Can Differentiate Into",
-                                    "Publication Found"
+                                    "Publication Found",
                                 ]
                             )
-                            st.write("None of the cell state transitions considered were plausible.")
+                            st.write(
+                                "None of the cell state transitions considered were plausible."
+                            )
 
                     # Display results when available
                     if (
                         "generated_hypothesis_df" in st.session_state
-                        and "df" in st.session_state and len(st.session_state.df)>0
+                        and "df" in st.session_state
+                        and len(st.session_state.df) > 0
                     ):
                         st.markdown("#### Validated hypothesis")
                         if len(st.session_state.generated_hypothesis_df) > 0:
@@ -1402,7 +1411,7 @@ def main():
             "selected_metadata": "No celltype column selected.",
             "milestone_network2": "Milestone network data is not available.",
             "dimred": "Dimensionality reduction data is not available.",
-            "dimred_milestones": "Dimensionality reduction milestones data is not available."
+            "dimred_milestones": "Dimensionality reduction milestones data is not available.",
         }
 
         # Loop through each required variable and check if it exists in session state and is valid
@@ -1478,7 +1487,10 @@ def main():
                 # st.write(len(st.session_state.cells_1))
                 # st.write(len(st.session_state.cells_2))
             if st.session_state.cells_2 is not None:
-                if len(st.session_state.cells_1) > 5 and len(st.session_state.cells_2) > 5:
+                if (
+                    len(st.session_state.cells_1) > 5
+                    and len(st.session_state.cells_2) > 5
+                ):
                     logtxt = "Both Selections have been made"
                     logtxtbox.text_area("", logtxt, height=1)
                     button_dge = st.button("Conduct DGE")
