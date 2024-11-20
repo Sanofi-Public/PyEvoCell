@@ -1,7 +1,7 @@
 
 
 # Manual Installation on Linux
-### 0. Install python, conda
+### requirements: python (and conda)
 
 ### 1. Configure Environment Variable
 Set the OpenAI API key:
