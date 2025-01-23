@@ -44,6 +44,11 @@ from plots.monocle3_plot import (
 
 from st_aggrid import GridOptionsBuilder, AgGrid
 
+import anndata as ad
+import scanpy as sc
+import cellrank as cr
+import numpy as np
+
 # import importlib
 # importlib.reload(llm.utils)
 # importlib.reload(llm.provider)
@@ -724,13 +729,14 @@ def main():
         st.title("EvoCell")
 
     # Create tabs
-    tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+    tab0, tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
         [
             "Load Dataset",
             "Generate Hypothesis",
             "Search Path",
             "Explain Path",
             "DGE",
+            "Driver Genes",
             "GSEA",
             "Veracity Filter",
         ]
@@ -1538,6 +1544,120 @@ def main():
                     st.success(dge_llm_res)
 
     with tab5:
+        import warnings
+        warnings.simplefilter("ignore", category=UserWarning)
+        st.header("Driver Genes")
+        cr.settings.verbosity = 2
+        sc.settings.set_figure_params(frameon=False, dpi=100)
+
+        # Checks before proceeding
+        all_checks_true, stop_string = True, ""
+
+        # List of required variables with their corresponding error messages
+        variables_needed = {
+            "cell_data": "Cell data is not available.",
+            "selected_metadata": "No celltype column selected.",
+            "milestone_network2": "Milestone network data is not available.",
+            "dimred": "Dimensionality reduction data is not available.",
+            "dimred_milestones": "Dimensionality reduction milestones data is not available.",
+            "counts_matrix": "Counts matrix is not available",
+        }
+
+        # Loop through each required variable and check if it exists in session state and is valid
+        for var, error_message in variables_needed.items():
+            if var not in st.session_state or st.session_state[var] is None:
+                # If any check fails, set all_checks_true to False and set the stop message
+                all_checks_true = False
+                stop_string = error_message
+                break  # Exit loop early on first failure
+
+        # Display warning if any check failed
+        if not all_checks_true:
+            st.warning(stop_string)
+        else:
+            fig1 = create_plot_nomilestones(
+                st.session_state.milestone_network2,
+                st.session_state.dimred,
+                st.session_state.dimred_milestones,
+                st.session_state.cell_data,
+                color_by=st.session_state.selected_metadata,
+            )
+            event = st.plotly_chart(
+                fig1, key="254", selection_mode=("box", "lasso"), on_select="rerun"
+            )
+            print("Figure is done")
+
+            # Collect data
+            cell_metadata = st.session_state.cell_data
+            counts_matrix = st.session_state.counts_matrix
+            celltype_column = st.session_state.selected_metadata
+
+            # Create AnnData Object
+            adata = ad.AnnData(
+                X=counts_matrix.T, obs=cell_metadata.set_index("cell_id")
+            )
+            # print(adata)
+            print(celltype_column)
+
+            # Normalize
+            sc.pp.filter_genes(adata, min_cells=5)
+            sc.pp.normalize_total(adata, target_sum=1e4)
+            sc.pp.log1p(adata)
+            # Feature selection
+            sc.pp.highly_variable_genes(adata, n_top_genes=3000)
+            # Dimensionality Reduction
+            sc.tl.pca(adata, random_state=0)
+            sc.pp.neighbors(adata, n_neighbors=15, use_rep="X_pca")
+            # Tsne
+            sc.tl.tsne(adata, n_pcs=30)
+            # Compute Pseudotime
+            sc.tl.diffmap(adata)
+
+            # Select cell_id as the root to compute pseudotime
+            # Also teh cellids that are in the selected path
+            cellid = "H358_A_AAACATACGCTTCC"
+            # print(np.flatnonzero(adata.obs['CellCycle'] == 'G1S')[0])
+            # print(adata.obs.index.get_loc(cellid))
+            adata.uns["iroot"] = adata.obs.index.get_loc(cellid)
+            # Calculate pseudotime
+            sc.tl.dpt(adata)
+            # Removing infinite values
+            adata_sub = adata[np.isfinite(adata.obs["dpt_pseudotime"])]
+
+            print("Finished Computing pseudotime")
+            print(adata_sub)
+
+            # Use the kernel to compute transition matrix
+            from cellrank.kernels import PseudotimeKernel
+
+            pk = PseudotimeKernel(adata_sub, time_key="dpt_pseudotime")
+            pk.compute_transition_matrix()
+
+            # Predict cell fates
+            from cellrank.estimators import GPCCA
+
+            g = GPCCA(pk)
+            print(g)
+            # Extract celltypes
+            num_celltypes = list(adata_sub.obs[celltype_column].unique())
+            
+            # Construct macrostate
+            print("Celltype Column: ", celltype_column)
+            g.fit(n_states=len(num_celltypes), cluster_key=celltype_column)
+            print("macostates have been computed")
+            print(adata_sub)
+            # Predict Terminal states
+            g.predict_terminal_states(method="top_n", n_states=6)
+            print("g has been computed")
+            print(adata_sub)
+            # g.plot_macrostates(which="terminal")
+
+            # Figure for visualizing gene pseudotime and celltypes
+            # sc.pl.embedding(
+            #    adata_sub, basis="tsne", color=[celltype_column, "dpt_pseudotime"]
+            # )
+
+    with tab6:
         st.title("GeneSet Enrichment Analysis")
         if st.session_state.dge_df is None:
             st.warning("Please conduct DGE in DGE tab.")
@@ -1649,7 +1769,7 @@ def main():
                         st.header("Explanation from LLM")
                         st.success(fa_llm_res)
 
-    with tab6:
+    with tab7:
         st.header("Enter a claim")
 
         # Text area for entering a few words on two lines
