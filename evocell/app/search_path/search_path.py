@@ -1,6 +1,29 @@
 import pandas as pd
 import networkx as nx
 
+def add_missing_milestones(dimred_milestones, milestones_top1_metadata, celltype_var):
+    # Identify missing milestone_ids
+    missing_milestones = dimred_milestones.index.difference(
+        milestones_top1_metadata["milestone_id"]
+    )
+    print(f"These are the missing milestones:\n{missing_milestones}")
+    # Create new rows for missing milestone_ids
+    new_rows = pd.DataFrame(
+        {
+            "milestone_id": missing_milestones,
+            "rank": "top1",
+            celltype_var: "NA",  # or use 'NA' string if preferred
+            "proportion": 0,
+        }
+    )
+
+    # Append new rows to the existing milestones_top1_metadata DataFrame
+    milestones_top1_metadata = pd.concat(
+        [milestones_top1_metadata, new_rows], ignore_index=True
+    )
+
+    return milestones_top1_metadata
+    
 def filter_paths_by_length(valid_paths, current_valid_paths, keep_longest=True):
     # Combine valid_paths and current_valid_paths into a single list of tuples
     combined_paths = list(zip(valid_paths, current_valid_paths))
@@ -300,10 +323,7 @@ def assign_cells_to_milestones_no_time(cell_data, milestone_percentages, celltyp
         .size()
         .reset_index(name='count')
     )
-
-    print(proportions_df)
-    print(proportions_df[proportions_df["milestone_id"]=="M341"])
-    
+  
     proportions_df['total'] = proportions_df.groupby('milestone_id')['count'].transform('sum')
     proportions_df['proportion'] = proportions_df['count'] / proportions_df['total']
 

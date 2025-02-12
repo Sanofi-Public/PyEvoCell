@@ -1,4 +1,38 @@
 
+# Docker Installation
+### 0. Install Docker if not already done
+
+### 1. Update API Key for chatGPT
+In the `docker-compose.yml` file:
+- Change the `OPENAI_API_KEY` if you are using OpenAI ChatGPT.
+
+### 2. Access Local Hard Drive
+For accessing your local hard drive for data, modify the `volumes` section:
+- From:
+  ```yaml
+  volumes: 
+    device: /home/mamat/accplatform/article1-sanofi/data
+  ```
+- To:
+  ```yaml
+  volumes:
+    device: [location on your hard drive]
+  ```
+
+### 3. Build and Run Docker
+```bash
+docker compose build
+docker compose up
+```
+
+### 4. (Optional) install a new Ollama model
+Open your browser and use http://{docker_container_machine_ip}:3000/ to install a new model.
+
+### 5. Access the app
+Open your browser and use http://{docker_container_machine_ip}:8501/ with {docker_container_machine_ip} being localhost most of the time
+
+"Enter the directory containing CSV files:": /home/streamlit/data/Kras
+
 
 # Manual Installation on Linux
 ### requirements: python (and conda)
@@ -60,8 +94,8 @@ set OLLAMA_API_BASE_URL=http://localhost:11434
 Activate the Python environment and run the Streamlit app:
 ```bash
 conda activate evocell
-cd evocell/app
-streamlit run main.py
+cd evocell
+streamlit run evocell_app.py
 ```
 
 # Manual Installation on macOS
@@ -91,32 +125,6 @@ export OLLAMA_API_BASE_URL=http://localhost:11434
 Activate the Python environment and run the app:
 ```bash
 conda activate evocell
-cd evocell/app
-streamlit run main.py
-```
-
-# Docker Installation
-### 0. Install Docker if not already done
-
-### 1. Update API Key
-In the `docker-compose.yml` file:
-- Change the `OPENAI_API_KEY` if you are using OpenAI ChatGPT.
-
-### 2. Access Local Hard Drive
-For accessing your local hard drive for data, modify the `volumes` section:
-- From:
-  ```yaml
-  volumes: 
-    device: /home/mamat/accplatform/article1-sanofi/data
-  ```
-- To:
-  ```yaml
-  volumes:
-    device: [location on your hard drive]
-  ```
-
-### 3. Build and Run Docker
-```bash
-docker compose build
-docker compose up
+cd evocell
+streamlit run evocell_app.py
 ```

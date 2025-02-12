@@ -1,4 +1,4 @@
-from .provider import get_output_claude3, get_llm_output
+from .provider import get_llm_output
 from .pubmed_api import paper_exists
 import re
 import html
@@ -6,7 +6,35 @@ import sys
 import requests
 from xml.etree import ElementTree
 import csv
+import queue
 
+def update_progress(message, progress_queue):
+    print("update_progress called")
+    print(message)
+    progress_queue.put(message)  # Put the message into the queue
+
+# Function to process hypothesis data in a separate thread
+def process_hypothesis_data_in_thread(
+    llm_model, answer_differentiation_table: str, results, progress_queue
+):
+    try:
+        # Process the hypothesis data
+        headers, processed_rows = process_hypothesis_data(
+            llm_model,
+            answer_differentiation_table,
+            progress_callback=lambda msg: update_progress(msg, progress_queue)
+        )
+
+        # Store results in the local 'results' dictionary
+        results["headers"] = headers
+        results["processed_rows"] = processed_rows
+
+        # Debug to confirm local variables are updated
+        print("Local variables updated with headers and processed_rows.")
+
+    except Exception as e:
+        # Print any errors that occur within the thread
+        print(f"An error occurred in thread processing: {e}")
 
 def process_hypothesis_data(
     llm_model, answer_differentiation_table: str, progress_callback=None
@@ -94,74 +122,6 @@ def process_hypothesis_data(
     # Add the new column "Publication Found"
     headers.append("Publication Found")
     return headers, processed_rows
-
-
-def process_hypothesis_data_old(
-    llm_model, answer_differentiation_table: str, progress_callback=None
-):
-    """
-    Parses and processes the input CSV to extract transitions and verify their validity.
-
-    Returns a tuple containing:
-    - headers: The headers of the table.
-    - processed_rows: A list of tuples (cell_state, target_state, citation or None).
-    """
-    answer_differentiation_table = format_csv(answer_differentiation_table)
-    print(answer_differentiation_table)
-
-    # Parse the CSV input properly to handle commas within quotes
-    csv_reader = csv.reader(answer_differentiation_table.strip().split("\n"))
-    headers = next(csv_reader)  # Extract headers
-    rows = list(csv_reader)  # Extract rows
-
-    processed_rows = []
-    seen_rows = set()
-
-    # First pass: process the rows to expand and clean data
-    for cells in rows:
-        cell_state = cells[0].strip('"').replace("\\", "")
-        transition_to = cells[1].strip('"').replace("\\", "")
-
-        # Skip rows with empty cell state, transition_to, or containing "NA"
-        if (
-            not cell_state
-            or not transition_to
-            or cell_state == "NA"
-            or transition_to == "NA"
-        ):
-            continue
-
-        # Split the transition_to field if it contains multiple states
-        target_states = [state.strip() for state in transition_to.split(",")]
-
-        # Create a row entry for each individual target state
-        for target_state in target_states:
-            print(cell_state)
-            print(target_state)
-            if progress_callback:
-                progress_callback(
-                    f"Checking transition from '{cell_state}' to '{target_state}' with LLM and pubmed"
-                )
-
-            # Verify the validity of the transition
-            is_valid, citation = verify(
-                llm_model, cell_state, target_state, progress_callback
-            )
-            # row_tuple = (cell_state, target_state, citation if is_valid else None)
-            row_tuple = (cell_state, target_state, is_valid)
-
-            # Add the row only if it has not been seen before
-            if row_tuple not in seen_rows:
-                processed_rows.append(row_tuple)
-                seen_rows.add(row_tuple)
-    # Final update to indicate completion
-    # if progress_callback:
-    #    progress_callback("Completed processing")
-
-    # Add the new column "Check"
-    headers.append("Publication Found")
-    return headers, processed_rows
-
 
 def verify(llm_model, first_cell, second_cell, progress_callback=None):
     # hypo_gen_prompt_prefix = "Is the following claim valid? Answer Yes or no and give three paper titles to support your answer. Don't include the author or any other information, just the titles and please make sure the paper titles exist. Please answer in the exact format here:\nYes/No\nTitle1:\nTitle2:\nTitle3:\n\nHere is the claim:"
@@ -439,63 +399,6 @@ def format_csv(answer_differentiation_table: str) -> str:
     print("the formatted_table is:")
     print(repr(formatted_table))
     return formatted_table
-
-
-def process_hypothesis_data_old(llm_model, answer_differentiation_table: str):
-    """
-    Parses and processes the input CSV to extract transitions and verify their validity.
-
-    Returns a tuple containing:
-    - headers: The headers of the table.
-    - processed_rows: A list of tuples (cell_state, target_state, citation or None).
-    """
-
-    answer_differentiation_table = format_csv(answer_differentiation_table)
-    print(answer_differentiation_table)
-
-    # Parse the CSV input properly to handle commas within quotes
-    csv_reader = csv.reader(answer_differentiation_table.strip().split("\n"))
-    headers = next(csv_reader)  # Extract headers
-    rows = list(csv_reader)  # Extract rows
-
-    processed_rows = []
-    seen_rows = set()
-
-    # First pass: process the rows to expand and clean data
-    for cells in rows:
-        cell_state = cells[0].strip('"').replace("\\", "")
-        transition_to = cells[1].strip('"').replace("\\", "")
-
-        # Skip rows with empty cell state, transition_to, or containing "NA"
-        if (
-            not cell_state
-            or not transition_to
-            or cell_state == "NA"
-            or transition_to == "NA"
-        ):
-            continue
-
-        # Split the transition_to field if it contains multiple states
-        target_states = [state.strip() for state in transition_to.split(",")]
-
-        # Create a row entry for each individual target state
-        for target_state in target_states:
-            print(cell_state)
-            print(target_state)
-            # Verify the validity of the transition
-            is_valid, citation = verify(llm_model, cell_state, target_state)
-            # row_tuple = (cell_state, target_state, citation if is_valid else None)
-            row_tuple = (cell_state, target_state, is_valid)
-
-            # Add the row only if it has not been seen before
-            if row_tuple not in seen_rows:
-                processed_rows.append(row_tuple)
-                seen_rows.add(row_tuple)
-
-    # Add the new column "Check"
-    headers.append("Publication Found")
-    return headers, processed_rows
-
 
 def generate_html_table(headers, processed_rows):
     """
