@@ -19,21 +19,23 @@ services:
       - evocell_ollama  # Ensure Ollama starts before EvoCell
 
   evocell_ollama:
+    image: ollama/ollama:latest
     hostname: evocell_ollama
     container_name: evocell_ollama
-    build:
-      context: ./ollama
-      dockerfile: Dockerfile
     ports:
       - "11434:11434"
       - "3001:3001"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ollama_app:/app
-      - ollama:/home/ollama/.ollama
-    entrypoint: ["/entrypoint.sh"]
+      - .:/code
+      - ./ollama/ollama:/root/.ollama
     user: root
+    pull_policy: always
+    tty: true
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_HOST=0.0.0.0
 
   evocell_ollama-webui:
     image: ghcr.io/ollama-webui/ollama-webui:main

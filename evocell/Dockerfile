@@ -41,6 +41,10 @@ WORKDIR /home/streamlit
 COPY ./app /home/streamlit
 COPY ./www  /home/streamlit/www
 
+# Gunzip the specified files
+RUN gunzip /home/streamlit/data/Kras/count_data.csv.gz && \
+    gunzip /home/streamlit/data/Pancreas/count_data.csv.gz
+    
 # Expose the default Streamlit port
 EXPOSE 8501
 

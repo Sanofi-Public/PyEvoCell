@@ -2,43 +2,68 @@
 
 ## Table of Contents
 1. [Introduction](#Introduction)
-2. [Using the App](#Using-the-app)
-   - 2.1 [Loading Data](#Loading-Data)
-   - 2.2 [Generate Hypothesis](#Generate-Hypothesis)
-   - 2.3 [Search Path](#Search-Path)
-   - 2.4 [Explain Path](#Explain-Path)
-   - 2.5 [DGE](#DGE)
-   - 2.6 [GSEA](#GSEA)
-   - 2.7 [Veracity Filter](#Veracity-Filter)
-3. [Customizing the LLM prompts](#Customizing-the-LLM-Prompts)
-4. [Adding an LLM](#Adding-an-LLM)
+2. [Requirements](#Requirements)
+   - 2.1 [Data](Ddata)
+   - 2.2 [Data Formats](Data-Formats)
+   - 2.3 [Demo Datasets](#demo-datasets)
+3. [Using the App](#Using-the-app)
+   - 3.1 [Loading Data](#Loading-Data)
+   - 3.2 [Generate Hypothesis](#Generate-Hypothesis)
+   - 3.3 [Search Path](#Search-Path)
+   - 3.4 [Explain Path](#Explain-Path)
+   - 3.5 [DGE](#DGE)
+   - 3.6 [Driver Genes](#Driver Genes)
+   - 3.7 [GSEA](#GSEA)
+   - 3.8 [Veracity Filter](#Veracity-Filter)
+5. [Customizing the LLM prompts](#Customizing-the-LLM-Prompts)
+6. [Adding an LLM](#Adding-an-LLM)
 
-## Introduction
-EvoCell is a web-based dashboard to analyze trajectories of single cell RNASeq datasets. Users can use the trajectories obtained from trajectory inference methods such as Monocle3. It allows users to identify cell transitions, automatically generate paths, and conduct downstream analysis such as differential gene expression (DGE) and GSEA. All of the features are augmented with a Large Language Model (LLM) that users can leverage to interpret results and generate insights.
+## Introduction 
+EvoCell is a web-based dashboard to analyze trajectories from single cell RNASeq datasets. Users can use the trajectories obtained from trajectory inference methods such as Monocle3. It allows users to identify cell transitions, automatically generate paths, and conduct downstream analysis such as driver genes analysis, differential gene expression (DGE) and GSEA. All features are augmented with a Large Language Model (LLM) that users can leverage to interpret results and generate insights.
 
-For the processes that take some seconds to run, there is a running indicator on the top right of the page. Please wait until it finishes running before interacting again with the application.
-
+For the processes that are computationally intensive, there is a running indicator on the top right of the page. Please wait until it finishes running before interacting again with the application.
 > ![Running icon](imgs/0_running_icon.png)
+
+
+## Requirements
+The users must set up the necessary environment for PyEvoCell by following instructions in README.md.
+
+### Data
+The trajectory needs to be processed into a suitable format (dynwrap objects). The dynwrap objects can be obtained by using a script https://github.com/mbeauvai/monocle3-cds2csv/blob/main/convert.R that uses the trajectory as input and outputs 5 files that contain dynwrap objects, namely - progressions.csv, milestone_percentages.csv, dimred_milestone.csv, dimred.csv, and trajectory_edges.csv.
+
+To begin the analysis, the directory that will be used for the study must contain the following CSV files.
+- Metadata: CSV file that contains column "cell_id" for the cell identifier 
+- Trajectory Files: The trajectory file must be converted to a CSV format which produces progressions.csv, milestone_percentages.csv, dimred_milestone.csv, dimred.csv, and trajectory_edges.csv
+- Count Data: A comma delimited count data file (count_data.csv) that has gene names in rows and cell identifiers as column names
+
+### Data Formats
+1. Metadata: CSV file that contains column called "**cell_id**" for the cell identifier
+2. Trajectory: The trajectory file must be converted to a CSV format (by the script at https://github.com/mbeauvai/monocle3-cds2csv or any similar script). The script produces 5 output files, including:   
+   - progressions.csv
+   - milestone_percentages.csv
+   - dimred_milestone.csv
+   - dimred.csv
+   - trajectory_edges.csv
+3. Count Data: A comma delimited count data file (count_data.csv) that has gene names in rows and cell ids as column names.
+
+**NOTE**: The cell identifiers of the count_data.csv and metadata must be identical.
+
+### Demo datasets
+Demo datasets can be found in the data/ folder, where the count_data.csv is gzipped. The users need to unzip this file (gunzip count_data.csv.gz).<br>
+A monocle3 trajectory file is also available - data/Kras/test-trajectory-method_monocle3-test_cds.rds.gz. This file needs to be unzipped (gunzip test-trajectory-method_monocle3-test_cds.rds.gz) and usead as input to the trajectory conversion script - https://github.com/mbeauvai/monocle3-cds2csv/blob/main/convert.R to produce the 5 csv files. <br>
+Additionally 2 datasets that are ready to be analyzed are located in data/Kras and data/Pancreas. These are publicly available datasets - KRAS and Pancreas datasets. Description is listed in the supplementary file.
 
 ## Using the app
 
 The following titles will guide the users on how to use the Evocell application.
 
 ## Loading Data
+The input to the app is a trajectory obtained from TI methods such as monocle3 along with the count matrix and metadata.
 
-To begin the analysis, the directory containing the CSV files that will be used for the study. Here is a list of the CSV files. Please refer to the supplementary file for additional details.
- 
-- Metadata: CSV file that contains column cell_id for the cell identifier 
-- Monocle trajectory: The CDS file must be converted to a CSV format which produces progressions.csv, milestone_percentages.csv, dimred_milestone.csv, dimred.csv, and trajectory_edges.csv
-- Count Data: A comma delimited count data file (count_data.csv) that has gene names in rows and cell ids as column names. 
-
-The cell identifiers of the count_data.csv and metadata must be identical and all the csv files must be in the same folder.
-Two demo datasets (Kras and Pancreas) are listed in the data/ folder. Please note that the count_data.csv is gzipped and will need to be unzipped using "gunzip count_data.csv.gz" command.
-
-Next, the input context for the study (or it can be left blank). This context will be added to the prompts sent to the LLM every time it is used. For more information, see [Customizing the LLM Prompts](#customizing-the-llm-prompts).
+Next, input the context for the study. This context will be added to the prompts sent to the LLM every time it is used and is highly recommended. For more information, see [Customizing the LLM Prompts](#customizing-the-llm-prompts).
 
 Finally, there is an option to select from the available LLM models. Currently, OpenAI's GPT models and open-source models through Ollama are supported.
-- For using the ChatGPT models from OpenAI (4o or 3.5-turbo), ensure that the environment variable `OPENAI_API_KEY` is set up correctly on the machine.
+- For using the ChatGPT models from OpenAI (4o or 3.5-turbo), ensure that the environment variable `OPENAI_API_KEY` is set up correctly on the machine. 
 - To use an Ollama model, users must ensure that the Ollama server is running locally. The application will automatically look for the OLLAMA_API_BASE_URL environment variable to establish a connection to the server. If this variable is not set, the application will default to connecting at <http://localhost:11434>.
 
 > ![Load dataset](imgs/1_load_dataset.png)
@@ -60,8 +85,8 @@ If the user has correctly selected a celltype column, a message listing the cell
 
 - Initially the LLM is prompted to come up with possible cell state transtitions amongst the ones found in the dataset.
 - After these cell state transitions are established, for each one transition:
-  1. The LLM is prompted again to give 3 papers from PubMed supporting the claim.
-  2. The titles are verified against the PubMed API. 
+  1. The LLM is prompted to give 3 papers from PubMed supporting the claim.
+  2. The titles are verified using the PubMed API. 
   3. The first paper to be found marks the cellstate transition with *Publication Found*, and the paper metadata is returned.
   4. If there is no paper backing up the cellstate transition claimed by the LLM, the cellstate transition is not validated, but it will still appear in the second table of possible hypothesis.
 - Two tables are returned: one for the verified transitions, and another one for all possible transitions.
@@ -70,7 +95,7 @@ If the user has correctly selected a celltype column, a message listing the cell
 
 
 ## Search Path
-In search path, the user can search for paths from one cellstate to another. The transitions generated in the Generate Hypothesis tab will appear here, but it is also possible to establish any desired transition. See how in the example below the cellstate G1S transitioning to S is added to the table of available options.
+In search path, the user can search for paths from one cellstate to another. The transitions generated in the Generate Hypothesis tab will appear here, but it is also possible to add a custom transition. See how in the example below the cellstate G1S transitioning to G0 is added to the table of available options.
 
 > ![Add transition](imgs/3_1_add_transition.png)
 
@@ -125,8 +150,23 @@ Finally, the table with the differentially expressed genes is displayed and with
 
 To modify the prompt with which the LLM is queried, see [Customizing the LLM Prompts](#customizing-the-llm-prompts).
 
+## Driver Genes
+Driver Genes finds the key driver genes that drive cells towards the end cell state specified by the user. It uses CellRank to construct the cell transition matrix using pseudotime of the cell in the trating cell state.
+
+The analysis is time consuming and typically takes 4-5 minutes on a 8-core cpu machine with 32GB RAM. his is the reason, the user asked for running the Driver Gene analysis.
+
+> ![Driver Genes table](imgs/driver_genes_tab.png)
+
+The output is a table of driver genes and plots that show pseutdotime of cells and the terminal macro states computed from CellRank.
+
+> ![Driver Gene Plots](imgs/driver_genes_plots.png)
+
+The user can choose the LLM option to get an explanation of the results and to explore links between the driver genes and terminal cell state in the context of the experiment.
+
+> ![LLM explanation](imgs/driver_genes_llm.png)
+
 ## GSEA
-Functional Analysis (FA) provides biological context to findings from DGE analysis. GeneSet Enrichment Analysis (GSEA) is performed on the DGE results to obtain enriched biological mechanisms. Therefore, before using this feature the DGE analysis must be conducted.
+ GSEA (GeneSet Enrichment Analysis)provides biological context to findings from DGE analysis. It is performed on the DGE results to obtain enriched biological mechanisms. Therefore, before using this feature the DGE analysis must be conducted.
 
 Once DGE has run, the correct Genome and Annotation must be selected, and a table with GSEA results is displayed.
 

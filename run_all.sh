@@ -3,7 +3,7 @@ curl -X POST -d "prefix=${WORKSPACE_BASE_URL}/port/${PORT}" -d "strip_prefix=tru
 
 conda activate evocell
 
-streamlit run evocell_app.py
+streamlit run ./evocell/app/main.py
 
 #https://your_oneai_workbench/port/8501/docs
 
