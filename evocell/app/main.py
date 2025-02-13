@@ -282,22 +282,23 @@ def main():
                             progress_placeholder.text("")
 
                         # After processing is complete, handle transferring results to session state
-                        if "headers" in results and "processed_rows" in results:
+                        if "headers" in results and "processed_rows" in results and "seen_rows" in results:
                             st.session_state.headers = results["headers"]
                             st.session_state.processed_rows = results["processed_rows"]
+                            st.session_state.seen_rows = results["seen_rows"]
                         else:
                             st.info(
                                 "There was an error getting the LLM response. Please try generating hypothesis again."
                             )
 
-                        if st.session_state.headers and st.session_state.processed_rows:
+                        if st.session_state.headers and st.session_state.processed_rows and st.session_state.seen_rows:
                             # Create two DataFrames: one for all rows and one for valid rows
-                            # valid rows (publication found): st.session_state.generated_hypothesis_df
-                            # all rows: st.session_state.df
+
                             all_data = [
                                 (cell_state, target_state, publication_found, citation)
                                 for cell_state, target_state, publication_found, citation in st.session_state.processed_rows
                             ]
+
                             valid_rows = [
                                 row for row in st.session_state.processed_rows if row[2]
                             ]  # Assuming 'is_valid' is the third item in the tuple
@@ -314,6 +315,10 @@ def main():
                             all_data_df = pd.DataFrame(
                                 all_data, columns=headers_with_citation
                             )  # Include 'citation' column
+
+                            seen_df = pd.DataFrame(
+                                st.session_state.seen_rows, columns=st.session_state.headers
+                            )
 
                             # Data for st.session_state.generated_hypothesis_df (only valid rows, excluding 'citation')
                             valid_data = [
@@ -339,36 +344,10 @@ def main():
                                 if citation
                             }
 
-                            # Display the generated_hypothesis_df DataFrame
-                            # st.dataframe(new_df)
-
-                            # Display citations below the DataFrame for valid rows
-                            # st.write("Citations:")
-                            # for index, citation in st.session_state.citations.items():
-                            #    st.write(f"Row {index}: {citation}")
-
                             # The following block keeps all rows in st.session_state.df
                             all_data_df["Selected"] = False
                             st.session_state.df = all_data_df  # if the user wants to keep previous hypothesis, comment this, uncomment following block
-
-                            # # If st.session_state.df already exists and is not empty
-                            # if (
-                            #     "df" in st.session_state
-                            #     and not st.session_state.df.empty
-                            # ):
-                            #     # Combine the all_data_df with the existing st.session_state.df
-                            #     combined_df = pd.concat(
-                            #         [st.session_state.df, all_data_df],
-                            #         ignore_index=True,
-                            #     )
-                            #     # Drop duplicates to keep only unique rows
-                            #     st.session_state.df = combined_df.drop_duplicates()
-                            # else:
-                            #     # If st.session_state.df is empty, simply set it as all_data_df
-                            #     st.session_state.df = all_data_df
-
-                            # Display the st.session_state.df DataFrame with all rows
-                            # st.dataframe(st.session_state.df)
+                            st.session_state.df_seen = seen_df
 
                         else:
                             # If headers and processed_rows are not available, initialize an empty DataFrame
@@ -378,6 +357,13 @@ def main():
                                     "Can Differentiate Into",
                                     "Publication Found",
                                     "Selected",
+                                ]
+                            )
+                            st.session_state.df_seen = pd.DataFrame(
+                                columns=[
+                                    "Cell state",
+                                    "Can Differentiate Into",
+                                    "Publication Found"
                                 ]
                             )
                             st.session_state.generated_hypothesis_df = pd.DataFrame(
@@ -408,22 +394,11 @@ def main():
                             st.write(
                                 "There were no cell state transitions backed by PubMed publications."
                             )
-                        st.markdown("#### List of possible hypothesis")
+                        st.markdown("#### List of checked hypothesis")
+                        print(f"st.session_state.df is:\n{st.session_state.df_seen}")
                         st.dataframe(
-                            st.session_state.df.drop(
-                                columns="Selected", errors="ignore"
-                            )
+                            st.session_state.df_seen
                         )
-
-                    # Display the previously generated DataFrame if it exists
-                    # elif "generated_hypothesis_df" in st.session_state:
-                    #    st.dataframe(st.session_state.generated_hypothesis_df)
-            #
-            #    # Display citations below the DataFrame for previously generated data
-            #    if "citations" in st.session_state:
-            #        st.write("Citations:")
-            #        for index, citation in st.session_state.citations.items():
-            #            st.write(f"Row {index}: {citation}")
 
         else:
             # Your alternative logic, if needed

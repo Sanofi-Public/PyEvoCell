@@ -12,6 +12,9 @@ def initialize_session():
     if "processed_rows" not in st.session_state:
         st.session_state.processed_rows = None
 
+    if "seen_rows" not in st.session_state:
+        st.session_state.seen_rows = None
+
     if "cell_data" not in st.session_state:
         st.session_state.cell_data = None
 

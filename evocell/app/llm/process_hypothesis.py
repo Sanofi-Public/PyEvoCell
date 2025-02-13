@@ -19,7 +19,7 @@ def process_hypothesis_data_in_thread(
 ):
     try:
         # Process the hypothesis data
-        headers, processed_rows = process_hypothesis_data(
+        headers, processed_rows, seen_rows = process_hypothesis_data(
             llm_model,
             answer_differentiation_table,
             progress_callback=lambda msg: update_progress(msg, progress_queue)
@@ -28,6 +28,7 @@ def process_hypothesis_data_in_thread(
         # Store results in the local 'results' dictionary
         results["headers"] = headers
         results["processed_rows"] = processed_rows
+        results["seen_rows"] = seen_rows
 
         # Debug to confirm local variables are updated
         print("Local variables updated with headers and processed_rows.")
@@ -48,6 +49,7 @@ def process_hypothesis_data(
     """
     print("start process_hypothesis_data()")
     answer_differentiation_table = format_hypothesis_str(answer_differentiation_table)
+    print("The answer_differentiation_table is:")
     print(answer_differentiation_table)
 
     # Get headers and rows
@@ -86,8 +88,6 @@ def process_hypothesis_data(
 
         # Create a row entry for each individual target state
         for target_state in target_states:
-            print(cell_state)
-            print(target_state)
 
             transitions_checked += 1  # Increment count of checked transitions
 
@@ -114,14 +114,22 @@ def process_hypothesis_data(
         for cell_state, target_state, is_true, is_valid, citation in processed_rows
         if is_valid  # Filter based on 'is_valid' value
     ]
+    # All seen rows
+    seen_rows = [
+        (cell_state, target_state, is_true == True and is_valid == True and citation != None) 
+        for cell_state, target_state, is_true, is_valid, citation in seen_rows
+    ]
 
-    print("headers:")
-    print(headers)
-    print("processed_rows:")
-    print(processed_rows)
     # Add the new column "Publication Found"
     headers.append("Publication Found")
-    return headers, processed_rows
+    print("headers:")
+    print(headers)
+    print('processed_rows:')
+    print(processed_rows)
+    print('seen_rows:')
+    print(seen_rows)
+
+    return headers, processed_rows, seen_rows
 
 def verify(llm_model, first_cell, second_cell, progress_callback=None):
     # hypo_gen_prompt_prefix = "Is the following claim valid? Answer Yes or no and give three paper titles to support your answer. Don't include the author or any other information, just the titles and please make sure the paper titles exist. Please answer in the exact format here:\nYes/No\nTitle1:\nTitle2:\nTitle3:\n\nHere is the claim:"
@@ -136,7 +144,6 @@ def verify(llm_model, first_cell, second_cell, progress_callback=None):
     print(verification)
     # Call process_paragraph_for_hypogen with progress callback
     return process_paragraph_for_hypogen(verification, progress_callback)
-
 
 def process_paragraph_for_hypogen(paragraph, progress_callback=None):
     paragraph = paragraph.replace("<br>", " ")
@@ -195,46 +202,6 @@ def process_paragraph_for_veracity(paragraph, progress_callback=None):
         return True, valid_citations, real_citations
 
     return True, False, None # transition possible but not backed by paper
-
-def process_paragraph_for_hypogen_old(paragraph):
-    paragraph = paragraph.replace("<br>", " ")
-    # print("paragraph after processed",paragraph)
-    # Regex to match a title followed by a digit
-    pattern = r"(Title \d+:|Title\d+:)"
-
-    # Split the paragraph using the regex pattern, keeping the initial part
-    parts = re.split(pattern, paragraph)
-    # print("parts",parts)
-    # Combine initial part and title-content pairs
-    combined_parts = [parts[0].strip()]
-    first_part = combined_parts[0]
-    yes = "yes"
-    no = "no"
-    if yes not in first_part.lower():
-        return False, None
-
-    for i in range(1, len(parts), 2):
-        this_title = parts[i + 1].strip()
-        # print("this_title",this_title)
-        citation = paper_exists(this_title)
-        if citation:
-            return True, citation
-    return False, None
-
-
-def verify_old(llm_model, first_cell, second_cell):
-    # hypo_gen_prompt_prefix = "Is the following claim valid? Answer Yes or no and give three paper titles to support your answer. Don't include the author or any other information, just the titles and please make sure the paper titles exist. Please answer in the exact format here:\nYes/No\nTitle1:\nTitle2:\nTitle3:\n\nHere is the claim:"
-    hypo_gen_prompt_prefix = "give me complete title for publications for pubmed that describe transition or differentiation of cells from "
-    prompt = (
-        hypo_gen_prompt_prefix
-        + first_cell
-        + " to "
-        + second_cell
-        +"."
-    )
-    verification = get_llm_output(llm_model, prompt)
-    return process_paragraph_for_hypogen(verification)
-
 
 def process_string(input_string):
     # Split the input string by <br>
@@ -348,56 +315,6 @@ def format_hypothesis_str(answer_differentiation_table: str) -> str:
     )
     formatted_table = formatted_table.replace(":", ",").replace(";", "\n")
 
-    print("the formatted_table is:")
-    print(repr(formatted_table))
-    return formatted_table
-
-
-def format_csv(answer_differentiation_table: str) -> str:
-    """
-    Formats the CSV string to ensure that entries in the 'Can Differentiate Into' column
-    are split into separate rows for each target state, removes any backslashes, and ensures each target state is a single word.
-
-    Args:
-        answer_differentiation_table (str): The original CSV string.
-
-    Returns:
-        str: The formatted CSV string with one target state per row.
-    """
-    print("start format_csv()")
-    print("answer_differentiation_table is:")
-    print(repr(answer_differentiation_table))
-    processed_lines = []
-
-    # Read the CSV input
-    csv_reader = csv.reader(answer_differentiation_table.strip().split("\n"))
-    headers = next(csv_reader)  # Extract headers
-    processed_lines.append(headers)  # Keep headers as-is
-
-    # Process each row to split 'Can Differentiate Into' entries
-    for cells in csv_reader:
-        # Ensure the row is not empty and has at least 2 elements
-        if len(cells) < 2 or not cells[0].strip() or not cells[1].strip():
-            continue
-
-        # Remove backslashes from the cell state and transition data
-        cell_state = cells[0].strip('"').replace("\\", "")
-        transition_data = ",".join(cells[1:]).strip('"').replace("\\", "")
-        target_states = [state.strip() for state in transition_data.split(",")]
-
-        # Create a new row for each target state, ensuring no spaces within states
-        for target_state in target_states:
-            # Skip empty, wildcard target states, or target states containing spaces
-            if target_state and target_state != "*" and " " not in target_state:
-                processed_lines.append([cell_state, target_state])
-
-    # Convert processed lines back to CSV format
-    formatted_table = "\n".join(
-        [f'"{line[0]}","{line[1]}"' for line in processed_lines if len(line) == 2]
-    )
-
-    print("the formatted_table is:")
-    print(repr(formatted_table))
     return formatted_table
 
 def generate_html_table(headers, processed_rows):
@@ -446,118 +363,6 @@ def generate_html_table(headers, processed_rows):
     # Replace newlines with HTML breaks for formatting
     html_str = result_string.replace("\n", "<br>")
     return html_str
-
-
-def process_hypothesis(llm_model, headers, processed_rows):
-    headers, processed_rows = process_hypothesis_data(
-        llm_model, answer_differentiation_table
-    )
-    html_output = generate_html_table(headers, processed_rows)
-    return html_output
-
-
-def process_hypothesis_old(headers, processed_rows):
-    """
-    Generates an HTML table from processed rows and appends footnotes for valid transitions.
-
-    Returns the HTML string for the table and citations.
-    """
-    # Prepare the initial HTML table header
-    processed_table = []
-    table_header = f"<tr><th>{headers[0]}</th><th>{headers[1]}</th></tr>"
-    processed_table.append(table_header)
-
-    citations = []
-    footnote_counter = 1
-
-    # Generate the HTML table rows
-    for cell_state, target_state, citation in processed_rows:
-        if citation:
-            # Include a footnote for valid transitions
-            footnote_text = f"<tr><td>{cell_state}</td><td>{target_state} [{footnote_counter}]</td></tr>"
-            citations.append(f"[{footnote_counter}] {citation}")
-            footnote_counter += 1
-        else:
-            # No footnote for invalid transitions
-            footnote_text = f"<tr><td>{cell_state}</td><td>{target_state}</td></tr>"
-
-        processed_table.append(footnote_text)
-
-    # Combine the processed table into a complete HTML table
-    table = "".join(processed_table)
-    table_html = f"<table border='1'>{table}</table>"
-
-    # Combine citations if any
-    if citations:
-        citations_html = "<br>".join(citations)
-        result_string = table_html + "<br><br>" + citations_html
-    else:
-        result_string = table_html
-
-    # Replace newlines with HTML breaks for formatting
-    html_str = result_string.replace("\n", "<br>")
-    return html_str
-
-
-def process_hypothesis_old2(answer_differentiation_table: str):
-    # Parse the CSV input properly to handle commas within quotes
-    csv_reader = csv.reader(answer_differentiation_table.strip().split("\n"))
-    headers = next(csv_reader)  # Extract headers
-    rows = list(csv_reader)  # Extract rows
-
-    # List to hold fully processed rows before generating HTML
-    processed_rows = []
-
-    # First pass: process the rows to expand and clean data
-    for cells in rows:
-        cell_state = cells[0].strip('"')
-        transition_to = cells[1].strip('"')
-
-        # Skip rows with empty cell state or transition_to
-        if not cell_state or not transition_to:
-            continue
-
-        # Split the transition_to field if it contains multiple states
-        target_states = [state.strip() for state in transition_to.split(",")]
-
-        # Create a row entry for each individual target state
-        for target_state in target_states:
-            processed_rows.append((cell_state, target_state))
-
-    # Prepare the processed table list with the initial HTML table header
-    processed_table = []
-    table_header = f"<tr><th>{headers[0]}</th><th>{headers[1]}</th></tr>"
-    processed_table.append(table_header)
-
-    citations = []
-    footnote_counter = 1
-    print(processed_rows)
-    # Second pass: generate the HTML table rows and verify transitions
-    for cell_state, target_state in processed_rows:
-        # Verify the validity of the transition (assuming you have a `verify` function)
-        is_valid, citation = verify(cell_state, target_state)
-        if is_valid:
-            # Include a footnote if there is a valid transition
-            footnote_text = f"<tr><td>{cell_state}</td><td>{target_state} [{footnote_counter}]</td></tr>"
-            citations.append(f"[{footnote_counter}] {citation}")
-            footnote_counter += 1
-            processed_table.append(footnote_text)
-
-    # Combine the processed table into a complete HTML table
-    table = "".join(processed_table)
-    table_html = f"<table border='1'>{table}</table>"
-
-    # Combine citations if any
-    if citations:
-        citations_html = "<br>".join(citations)
-        result_string = table_html + "<br><br>" + citations_html
-    else:
-        result_string = table_html
-
-    # Replace newlines with HTML breaks for formatting
-    html_str = result_string.replace("\n", "<br>")
-    return html_str
-
 
 if __name__ == "__main__":
     inputstr = sys.argv[1]
